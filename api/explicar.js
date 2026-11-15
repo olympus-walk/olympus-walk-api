@@ -30,13 +30,18 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 200 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 1024 },
         }),
       }
     );
     if (!r.ok) return res.status(502).json({ error: 'Gemini falló' }); // la app usa la plantilla
     const data = await r.json();
-    const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const texto = (data?.candidates?.[0]?.content?.parts || [])
+    .filter(p => p.text && !p.thought)
+    .map(p => p.text)
+    .join('')
+    .trim();
+  if (!texto) return res.status(502).json({ error: 'Respuesta vacía' });
     return res.status(200).json({ texto });
   } catch {
     return res.status(502).json({ error: 'Sin respuesta' });
